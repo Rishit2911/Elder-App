@@ -1,0 +1,858 @@
+openapi: 3.0.3
+info:
+  title: SeniorCare Platform REST API
+  description: Backend REST API specification for SeniorCare – AI-Powered Elderly Healthcare & Caregiving Platform.
+  version: 1.0.0
+  contact:
+    name: SeniorCare Engineering Team
+    email: dev@seniorcare.health
+servers:
+  - url: https://api.seniorcare.health/api/v1
+    description: Production Environment
+  - url: http://localhost:8000/api/v1
+    description: Local Development Environment
+
+tags:
+  - name: Authentication
+    description: User registration, login, JWT token rotation, and sessions
+  - name: Face Biometrics
+    description: OpenCV & ArcFace passwordless authentication for seniors
+  - name: Family Connections
+    description: Invitations, care circle relationships, and ReBAC permission grants
+  - name: Healthcare & Medicines
+    description: Vitals tracking, prescriptions, medicine schedules, and intake logs
+  - name: Emergency SOS
+    description: Urgent SOS event triggers, location broadcasting, and emergency contacts
+  - name: Caregivers
+    description: Caregiver search, profile inspection, bookings, and visit reports
+  - name: Consultations & Hospitals
+    description: Doctor appointments, nearby hospital discovery, and lab bookings
+  - name: AI Assistant
+    description: LangGraph RAG conversational voice assistant
+  - name: Notifications
+    description: Push alerts, reminders, and delivery preferences
+
+paths:
+  /auth/register/senior:
+    post:
+      tags: [Authentication]
+      summary: Register a senior citizen account
+      operationId: registerSenior
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SeniorRegisterRequest'
+      responses:
+        '201':
+          description: Registration initiated, OTP dispatched
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegistrationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /auth/register/family:
+    post:
+      tags: [Authentication]
+      summary: Register a family member or guardian account
+      operationId: registerFamily
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FamilyRegisterRequest'
+      responses:
+        '201':
+          description: Account created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSuccessResponse'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: User login via phone/email and password
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful, tokens returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /auth/refresh:
+    post:
+      tags: [Authentication]
+      summary: Rotate expired access token using refresh token
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token, device_uuid]
+              properties:
+                refresh_token:
+                  type: string
+                device_uuid:
+                  type: string
+      responses:
+        '200':
+          description: New tokens generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /auth/logout:
+    post:
+      tags: [Authentication]
+      summary: Invalidate active session and blacklist token
+      operationId: logout
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Successfully logged out
+
+  /auth/face/register:
+    post:
+      tags: [Face Biometrics]
+      summary: Enroll facial embedding for passwordless senior login
+      operationId: enrollFace
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [frame_1, frame_2]
+              properties:
+                frame_1:
+                  type: string
+                  format: binary
+                frame_2:
+                  type: string
+                  format: binary
+                frame_3:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Face profile enrolled successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: enrolled
+                  quality_score:
+                    type: number
+                    format: float
+                    example: 0.95
+                  liveness_verified:
+                    type: boolean
+                    example: true
+
+  /auth/face/verify-login:
+    post:
+      tags: [Face Biometrics]
+      summary: Authenticate senior via single live facial snapshot
+      operationId: verifyFaceLogin
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [phone_number, live_frame, device_uuid]
+              properties:
+                phone_number:
+                  type: string
+                live_frame:
+                  type: string
+                  format: binary
+                device_uuid:
+                  type: string
+      responses:
+        '200':
+          description: Verification matched, access granted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /family/invitations:
+    post:
+      tags: [Family Connections]
+      summary: Send family care circle invitation
+      operationId: createFamilyInvitation
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [invitee_phone, relation_proposed]
+              properties:
+                invitee_phone:
+                  type: string
+                  example: "+919811223344"
+                relation_proposed:
+                  type: string
+                  example: "daughter"
+      responses:
+        '201':
+          description: Invitation created and dispatched
+
+  /family/invitations/accept:
+    post:
+      tags: [Family Connections]
+      summary: Accept pending family invitation
+      operationId: acceptFamilyInvitation
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [invitation_code]
+              properties:
+                invitation_code:
+                  type: string
+                  example: "INV-784920"
+      responses:
+        '200':
+          description: Invitation accepted, relationship active
+
+  /family/relationships/{relationship_id}/permissions:
+    put:
+      tags: [Family Connections]
+      summary: Update fine-grained ReBAC permissions for family member
+      operationId: updatePermissions
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: relationship_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                permissions:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/PermissionItem'
+      responses:
+        '200':
+          description: Permissions updated successfully
+
+  /healthcare/seniors/{senior_id}/dashboard-summary:
+    get:
+      tags: [Healthcare & Medicines]
+      summary: Fetch home dashboard aggregate data for Person 1 Flutter UI
+      operationId: getDashboardSummary
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: senior_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Aggregated dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardSummaryResponse'
+
+  /healthcare/seniors/{senior_id}/medicines:
+    get:
+      tags: [Healthcare & Medicines]
+      summary: List all active medicines and schedules
+      operationId: getMedicines
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: senior_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of medicines
+
+    post:
+      tags: [Healthcare & Medicines]
+      summary: Add a new medicine and dosage schedule
+      operationId: createMedicine
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: senior_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MedicineCreateRequest'
+      responses:
+        '201':
+          description: Medicine added
+
+  /healthcare/medicines/logs:
+    post:
+      tags: [Healthcare & Medicines]
+      summary: Log medicine intake adherence (taken, missed, skipped)
+      operationId: logMedicineAdherence
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MedicineLogRequest'
+      responses:
+        '200':
+          description: Log recorded successfully
+
+  /healthcare/seniors/{senior_id}/records:
+    get:
+      tags: [Healthcare & Medicines]
+      summary: Retrieve health records, vitals, and diagnostic reports
+      operationId: getHealthRecords
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: senior_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Health records array
+
+    post:
+      tags: [Healthcare & Medicines]
+      summary: Log new vital signs or health record entry
+      operationId: createHealthRecord
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: senior_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HealthRecordCreateRequest'
+      responses:
+        '201':
+          description: Health record created
+
+  /emergency/sos:
+    post:
+      tags: [Emergency SOS]
+      summary: Urgent SOS emergency trigger
+      operationId: triggerSOS
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SOSTriggerRequest'
+      responses:
+        '201':
+          description: SOS event created and family/services alerted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SOSEventResponse'
+
+  /emergency/sos/{event_id}/resolve:
+    post:
+      tags: [Emergency SOS]
+      summary: Resolve or close an active SOS emergency incident
+      operationId: resolveSOS
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: event_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [resolution_status]
+              properties:
+                resolution_status:
+                  type: string
+                  enum: [resolved, false_alarm]
+                notes:
+                  type: string
+      responses:
+        '200':
+          description: Incident closed
+
+  /caregivers/search:
+    get:
+      tags: [Caregivers]
+      summary: Search and filter available certified caregivers
+      operationId: searchCaregivers
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: city
+          in: query
+          schema:
+            type: string
+        - name: service_category
+          in: query
+          schema:
+            type: string
+        - name: min_rating
+          in: query
+          schema:
+            type: number
+      responses:
+        '200':
+          description: List of caregivers
+
+  /caregivers/bookings:
+    post:
+      tags: [Caregivers]
+      summary: Request a new caregiver booking shift
+      operationId: createCaregiverBooking
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingCreateRequest'
+      responses:
+        '201':
+          description: Booking created
+
+  /assistant/chat:
+    post:
+      tags: [AI Assistant]
+      summary: Conversational query to AI Voice Assistant (LangGraph RAG)
+      operationId: chatAssistant
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message]
+              properties:
+                message:
+                  type: string
+                language:
+                  type: string
+                  default: 'hi'
+      responses:
+        '200':
+          description: AI response and voice audio link
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reply_text:
+                    type: string
+                  audio_tts_url:
+                    type: string
+                  action_triggered:
+                    type: string
+
+  /consultations/nearby-hospitals:
+    get:
+      tags: [Consultations & Hospitals]
+      summary: Discover nearby emergency hospitals and clinics
+      operationId: getNearbyHospitals
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: latitude
+          in: query
+          required: true
+          schema:
+            type: number
+        - name: longitude
+          in: query
+          required: true
+          schema:
+            type: number
+      responses:
+        '200':
+          description: Nearby hospitals list
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    SeniorRegisterRequest:
+      type: object
+      required: [phone_number, full_name, date_of_birth, gender, address, city, postal_code]
+      properties:
+        phone_number:
+          type: string
+          example: "+919876543210"
+        full_name:
+          type: string
+          example: "Ramesh Sharma"
+        preferred_name:
+          type: string
+          example: "दादाजी"
+        date_of_birth:
+          type: string
+          format: date
+          example: "1952-08-15"
+        gender:
+          type: string
+          enum: [male, female, other]
+        blood_group:
+          type: string
+          example: "O+"
+        address:
+          type: string
+        city:
+          type: string
+        postal_code:
+          type: string
+        primary_language:
+          type: string
+          default: "hi"
+
+    FamilyRegisterRequest:
+      type: object
+      required: [phone_number, password, full_name]
+      properties:
+        phone_number:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+        full_name:
+          type: string
+        relationship_description:
+          type: string
+
+    LoginRequest:
+      type: object
+      required: [username, password, device_uuid]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+        device_uuid:
+          type: string
+        platform:
+          type: string
+          enum: [android, ios, web]
+
+    AuthSuccessResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        token_type:
+          type: string
+          example: "bearer"
+        expires_in:
+          type: integer
+          example: 900
+        user:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            role:
+              type: string
+            name:
+              type: string
+
+    RegistrationResponse:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        message:
+          type: string
+        otp_expires_in_seconds:
+          type: integer
+
+    PermissionItem:
+      type: object
+      required: [module, level]
+      properties:
+        module:
+          type: string
+          enum: [health_records, medicines, live_location, caregiver_bookings, doctor_consultations, financial_billing]
+        level:
+          type: string
+          enum: [none, view_only, full_management]
+
+    DashboardSummaryResponse:
+      type: object
+      properties:
+        senior_name:
+          type: string
+        greeting:
+          type: string
+        subtitle:
+          type: string
+        profile_image_url:
+          type: string
+        next_medicine:
+          type: object
+        recent_vitals:
+          type: object
+        caregiver_status:
+          type: string
+        unread_notifications_count:
+          type: integer
+
+    MedicineCreateRequest:
+      type: object
+      required: [name, dosage_strength, form, meal_relation, start_date]
+      properties:
+        name:
+          type: string
+        dosage_strength:
+          type: string
+        form:
+          type: string
+        meal_relation:
+          type: string
+        start_date:
+          type: string
+          format: date
+        instructions:
+          type: string
+        schedules:
+          type: array
+          items:
+            type: object
+            properties:
+              time_of_day:
+                type: string
+              dose_quantity:
+                type: number
+
+    MedicineLogRequest:
+      type: object
+      required: [schedule_id, senior_id, scheduled_timestamp, status]
+      properties:
+        schedule_id:
+          type: string
+          format: uuid
+        senior_id:
+          type: string
+          format: uuid
+        scheduled_timestamp:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [taken, missed, skipped, snoozed]
+        notes:
+          type: string
+
+    HealthRecordCreateRequest:
+      type: object
+      required: [title, record_type, recorded_at]
+      properties:
+        title:
+          type: string
+        record_type:
+          type: string
+        recorded_at:
+          type: string
+          format: date-time
+        vital_bp_systolic:
+          type: integer
+        vital_bp_diastolic:
+          type: integer
+        vital_heart_rate:
+          type: integer
+        vital_blood_glucose:
+          type: number
+        notes:
+          type: string
+
+    SOSTriggerRequest:
+      type: object
+      required: [latitude, longitude, trigger_source]
+      properties:
+        latitude:
+          type: number
+        longitude:
+          type: number
+        approximate_address:
+          type: string
+        trigger_source:
+          type: string
+          enum: [in_app_button, voice_assistant_keyword, fall_detection_sensor]
+        battery_level_percent:
+          type: integer
+
+    SOSEventResponse:
+      type: object
+      properties:
+        sos_event_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+        triggered_at:
+          type: string
+          format: date-time
+        notified_contacts_count:
+          type: integer
+        message:
+          type: string
+
+    BookingCreateRequest:
+      type: object
+      required: [senior_id, caregiver_id, service_id, booking_type, start_datetime, end_datetime]
+      properties:
+        senior_id:
+          type: string
+          format: uuid
+        caregiver_id:
+          type: string
+          format: uuid
+        service_id:
+          type: string
+          format: uuid
+        booking_type:
+          type: string
+          enum: [hourly, daily, weekly, monthly]
+        start_datetime:
+          type: string
+          format: date-time
+        end_datetime:
+          type: string
+          format: date-time
+        special_instructions:
+          type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        error_code:
+          type: string
+        message:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+  responses:
+    BadRequestError:
+      description: Invalid request parameters or body
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    UnauthorizedError:
+      description: Authentication failed or credentials missing
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ForbiddenError:
+      description: Permission or ReBAC authorization denied
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ConflictError:
+      description: Conflicting resource or duplicate key
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+

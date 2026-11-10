@@ -1,0 +1,28 @@
+# Git Ignore for SeniorCare Project Root
+
+# Secrets & Environment Configurations (CRITICAL)
+.env
+*.env
+!*.env.example
+backend/.env
+
+# Python & Virtual Environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+backend/venv/
+backend/.venv/
+
+# Flutter / Dart Build Artifacts (Elder-App)
+**/android/app/build/
+**/ios/Pods/
+**/.dart_tool/
+**/build/
+
+# IDE / Editor Files
+.vscode/
+.idea/
+*.swp
+*.swo
+

@@ -1,0 +1,19 @@
+# Database Migrations (Alembic)
+
+This directory contains database schema migration scripts for SeniorCare.
+
+To autogenerate a new migration from SQLAlchemy models:
+```bash
+alembic revision --autogenerate -m "create initial 37 tables"
+```
+
+To apply migrations to the target database:
+```bash
+alembic upgrade head
+```
+
+To rollback the last migration:
+```bash
+alembic downgrade -1
+```
+
