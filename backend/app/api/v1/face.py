@@ -76,7 +76,7 @@ async def enroll_face(
             encrypted_embedding=ciphertext,
             encryption_iv=iv,
             encryption_tag=tag,
-            model_version="arcface-512-v1",
+            model_version="sface_2021dec",
             quality_score=quality_score,
             liveness_score=liveness_score,
             is_active=True
@@ -159,6 +159,7 @@ async def verify_face(
 
     image_bytes = await face_image.read()
     is_match, similarity_score, liveness_score = face_service.process_and_verify(image_bytes, face_profile)
+    print(f"\n[BIOMETRIC AUTH] User: {identifier} | Similarity: {similarity_score:.4f} (Threshold: {face_service.match_threshold}) | Liveness: {liveness_score:.2f} | Match: {is_match}\n", flush=True)
 
     if not is_match:
         audit = AuditLog(
@@ -179,6 +180,41 @@ async def verify_face(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Face verification failed. Biometric match was below threshold. Please ensure good lighting."
         )
+
+    # Adaptive Rolling Biometric Template Update (Self-Learning):
+    # Blends 10% of today's verified embedding into the master template.
+    # Enables natural adaptation to aging, beards, and lighting without ever re-enrolling!
+    try:
+        import numpy as np
+        from app.core.security import decrypt_face_embedding, encrypt_face_embedding
+        stored_raw = decrypt_face_embedding(
+            face_profile.encrypted_embedding,
+            face_profile.encryption_iv,
+            face_profile.encryption_tag
+        )
+        stored_vec = np.frombuffer(stored_raw, dtype=np.float32)
+        fresh_crop, _ = face_service.detect_face(face_service.validate_and_decode_image(image_bytes))
+        fresh_embedding = face_service.extract_embedding(fresh_crop)
+        fresh_vec = np.frombuffer(fresh_embedding, dtype=np.float32)
+
+        if len(stored_vec) == len(fresh_vec):
+            blended = 0.90 * stored_vec + 0.10 * fresh_vec
+            norm = np.linalg.norm(blended)
+            if norm > 0:
+                blended = blended / norm
+            updated_bytes = blended.astype(np.float32).tobytes()
+        else:
+            # Upgrade legacy 512-D profile to modern SFace 128-D embedding
+            updated_bytes = fresh_vec.tobytes()
+            face_profile.model_version = "sface_2021dec"
+
+        new_c, new_iv, new_t = encrypt_face_embedding(updated_bytes)
+        face_profile.encrypted_embedding = new_c
+        face_profile.encryption_iv = new_iv
+        face_profile.encryption_tag = new_t
+        face_profile.updated_at = datetime.now(timezone.utc)
+    except Exception as e:
+        print(f"[BIOMETRIC AUTH] Adaptive template update warning: {e}")
 
     # Issue tokens upon verified biometric match
     tokens = await AuthService.create_tokens(db, user, device_uuid=device_uuid)
@@ -256,7 +292,7 @@ async def re_enroll_face(
             encrypted_embedding=ciphertext,
             encryption_iv=iv,
             encryption_tag=tag,
-            model_version="arcface-512-v1",
+            model_version="sface_2021dec",
             quality_score=quality_score,
             liveness_score=liveness_score,
             is_active=True
@@ -275,7 +311,7 @@ async def re_enroll_face(
         details_json={
             "quality_score": quality_score,
             "liveness_score": liveness_score,
-            "model_version": "arcface-512-v1"
+            "model_version": "sface_2021dec"
         }
     )
     db.add(audit)

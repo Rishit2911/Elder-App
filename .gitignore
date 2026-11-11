@@ -26,3 +26,8 @@ backend/.venv/
 *.swp
 *.swo
 
+# Local Database Backups
+*.sql
+elder-app-backup.sql
+
+
