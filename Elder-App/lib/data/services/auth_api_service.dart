@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
 
 class AuthApiService {
@@ -10,14 +11,22 @@ class AuthApiService {
   AuthApiService._internal();
 
   /// Base API URL for FastAPI backend
-  /// If running in Android emulator, use 10.0.2.2, otherwise localhost for Web/Desktop
+  /// Supports Web, Android Emulator (10.0.2.2), iOS Simulator, and custom build flags
   static String get defaultBaseUrl {
+    const envUrl = String.fromEnvironment('API_URL');
+    if (envUrl.isNotEmpty) return envUrl;
+
     if (kIsWeb) return 'http://localhost:8000/api/v1';
-    // For mobile platforms, default to local machine address or emulator
-    return 'http://10.0.2.2:8000/api/v1';
+
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      // 10.0.2.2 maps directly to host PC localhost on Android Emulator
+      return 'http://10.0.2.2:8000/api/v1';
+    }
+    // iOS Simulator maps directly to localhost
+    return 'http://localhost:8000/api/v1';
   }
 
-  String baseUrl = 'http://localhost:8000/api/v1';
+  String baseUrl = defaultBaseUrl;
 
   // Active authenticated session memory
   String? _accessToken;
@@ -34,22 +43,60 @@ class AuthApiService {
         if (_accessToken != null) 'Authorization': 'Bearer $_accessToken',
       };
 
-  /// Save session state
-  void setSession({
+  /// Save session state in memory and persist across app restarts
+  Future<void> setSession({
     required String accessToken,
     required String refreshToken,
     required UserModel user,
-  }) {
+  }) async {
     _accessToken = accessToken;
     _refreshToken = refreshToken;
     _currentUser = user;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('elderly_access_token', accessToken);
+      await prefs.setString('elderly_refresh_token', refreshToken);
+      await prefs.setString('elderly_user_profile', jsonEncode(user.toJson()));
+    } catch (e) {
+      debugPrint('Failed to persist session: $e');
+    }
   }
 
   /// Clear session state on logout
-  void clearSession() {
+  Future<void> clearSession() async {
     _accessToken = null;
     _refreshToken = null;
     _currentUser = null;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('elderly_access_token');
+      await prefs.remove('elderly_refresh_token');
+      await prefs.remove('elderly_user_profile');
+    } catch (e) {
+      debugPrint('Failed to clear session: $e');
+    }
+  }
+
+  /// Restore saved session on app launch
+  Future<bool> restoreSession() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('elderly_access_token');
+      final rToken = prefs.getString('elderly_refresh_token');
+      final userJson = prefs.getString('elderly_user_profile');
+
+      if (token != null && rToken != null && userJson != null) {
+        _accessToken = token;
+        _refreshToken = rToken;
+        _currentUser = UserModel.fromJson(jsonDecode(userJson));
+        return true;
+      }
+    } catch (e) {
+      debugPrint('Failed to restore session: $e');
+    }
+    return false;
   }
 
   // ===========================================================================
@@ -182,7 +229,7 @@ class AuthApiService {
     final userJson = data['user'] as Map<String, dynamic>;
     final user = UserModel.fromJson(userJson);
 
-    setSession(
+    await setSession(
       accessToken: accessToken,
       refreshToken: refreshToken,
       user: user,
@@ -248,7 +295,7 @@ class AuthApiService {
     final userJson = data['user'] as Map<String, dynamic>;
     final user = UserModel.fromJson(userJson);
 
-    setSession(
+    await setSession(
       accessToken: accessToken,
       refreshToken: refreshToken,
       user: user,
@@ -289,7 +336,7 @@ class AuthApiService {
     final userJson = data['user'] as Map<String, dynamic>;
     final user = UserModel.fromJson(userJson);
 
-    setSession(
+    await setSession(
       accessToken: accessToken,
       refreshToken: refreshToken,
       user: user,
@@ -328,7 +375,7 @@ class AuthApiService {
         );
       } catch (_) {}
     }
-    clearSession();
+    await clearSession();
   }
 
   // ===========================================================================

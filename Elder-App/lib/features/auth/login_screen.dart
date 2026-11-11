@@ -6,6 +6,7 @@ import '../../core/widgets/custom_text_field.dart';
 import '../../core/widgets/role_badge.dart';
 import '../../data/models/user_model.dart';
 import '../../data/services/auth_api_service.dart';
+import '../../data/services/native_biometric_service.dart';
 import '../caregiver/caregiver_dashboard_screen.dart';
 import '../family/family_dashboard_screen.dart';
 import '../senior/senior_dashboard_screen.dart';
@@ -37,14 +38,30 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   bool _showSeniorPasswordFallback = false;
 
+  UserModel? _savedUser;
+  bool _hasSavedSession = false;
+
   @override
   void initState() {
     super.initState();
     _selectedRole = widget.initialRole;
-    _setDefaultCredentialsForDemo(_selectedRole);
+    _checkSavedSessionAndDefaults();
   }
 
-  void _setDefaultCredentialsForDemo(UserRole role) {
+  Future<void> _checkSavedSessionAndDefaults() async {
+    final hasSession = await _apiService.restoreSession();
+    if (hasSession && _apiService.currentUser != null) {
+      if (!mounted) return;
+      setState(() {
+        _savedUser = _apiService.currentUser;
+        _hasSavedSession = true;
+        _selectedRole = _savedUser!.role;
+        _identifierController.text = _savedUser!.phoneNumber ?? _savedUser!.email ?? '';
+      });
+    }
+  }
+
+  void _fillDemoCredentials(UserRole role) {
     switch (role) {
       case UserRole.senior:
         _identifierController.text = '+919876543210';
@@ -72,8 +89,43 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() {
       _selectedRole = role;
       _showSeniorPasswordFallback = false;
-      _setDefaultCredentialsForDemo(role);
+      if (_hasSavedSession && _savedUser != null && _savedUser!.role == role) {
+        _identifierController.text = _savedUser!.phoneNumber ?? _savedUser!.email ?? '';
+      } else {
+        _identifierController.clear();
+        _passwordController.clear();
+      }
     });
+  }
+
+  /// Instant Unlock using Apple Face ID / Touch ID / Android BiometricPrompt or Screen Lock PIN
+  Future<void> _handleQuickBiometricUnlock() async {
+    final userName = _savedUser?.fullName ?? 'User';
+    final authenticated = await NativeBiometricService().authenticate(
+      reason: 'Welcome back $userName! Authenticate to open Elderly Seva.',
+    );
+
+    if (!authenticated || !mounted) return;
+
+    final targetRole = _savedUser?.role ?? _selectedRole;
+    Widget targetScreen;
+    switch (targetRole) {
+      case UserRole.senior:
+        targetScreen = const SeniorDashboardScreen();
+        break;
+      case UserRole.family:
+        targetScreen = const FamilyDashboardScreen();
+        break;
+      case UserRole.caregiver:
+        targetScreen = const CaregiverDashboardScreen();
+        break;
+    }
+
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => targetScreen),
+      (route) => false,
+    );
   }
 
   /// Launch Face Recognition Login for Senior Citizen
@@ -238,6 +290,104 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
 
                 const SizedBox(height: 24),
+
+                // Persistent Session Quick Unlock Banner
+                if (_hasSavedSession && _savedUser != null) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          AppColors.primaryBlue.withOpacity(0.08),
+                          AppColors.mintGreen.withOpacity(0.12),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.primaryBlue.withOpacity(0.3), width: 1.5),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: AppColors.primaryBlue.withOpacity(0.15),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.fingerprint_rounded,
+                                size: 28,
+                                color: AppColors.primaryBlue,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Saved Session: ${_savedUser!.fullName}',
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.navy,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '${_savedUser!.phoneNumber ?? _savedUser!.email ?? ''} (${_savedUser!.role.name.toUpperCase()})',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.textSecondary,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        CustomButton(
+                          label: 'Quick Unlock (Face ID / Fingerprint / PIN)',
+                          icon: Icons.lock_open_rounded,
+                          height: 50,
+                          borderRadius: 14,
+                          backgroundColor: AppColors.mintGreen,
+                          foregroundColor: AppColors.navy,
+                          onPressed: _handleQuickBiometricUnlock,
+                        ),
+                        const SizedBox(height: 8),
+                        Center(
+                          child: TextButton(
+                            onPressed: () {
+                              setState(() {
+                                _hasSavedSession = false;
+                                _savedUser = null;
+                                _identifierController.clear();
+                                _passwordController.clear();
+                              });
+                            },
+                            child: const Text(
+                              'Switch Account or Sign in as Someone Else',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                color: AppColors.navyMuted,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
 
                 // =============================================================
                 // ROLE SPECIFIC VIEW 1: SENIOR CITIZEN FACE AUTHENTICATION
@@ -495,6 +645,24 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                   ],
+                ),
+
+                const SizedBox(height: 12),
+
+                // Optional Demo Helper
+                Center(
+                  child: TextButton.icon(
+                    icon: const Icon(Icons.auto_fix_high_rounded, size: 16, color: AppColors.textSecondary),
+                    label: const Text(
+                      'Demo: Fill Sample Credentials',
+                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _fillDemoCredentials(_selectedRole);
+                      });
+                    },
+                  ),
                 ),
 
                 const SizedBox(height: 28),

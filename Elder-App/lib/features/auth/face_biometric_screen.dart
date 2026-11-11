@@ -1,12 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/custom_button.dart';
 import '../../data/models/user_model.dart';
 import '../../data/services/auth_api_service.dart';
 import '../senior/senior_dashboard_screen.dart';
 import 'camera_helper.dart';
-import 'face_sample_data.dart';
 import 'login_screen.dart';
 
 enum FaceScreenMode {
@@ -84,13 +84,31 @@ class _FaceBiometricScreenState extends State<FaceBiometricScreen>
     super.dispose();
   }
 
-  List<int> _captureFaceImageBytes() {
+  Future<List<int>> _captureFaceImageBytes() async {
     if (_cameraReady) {
-      final snapshot = _cameraHelper.captureSnapshot();
+      final snapshot = await _cameraHelper.captureSnapshot();
       if (snapshot != null && snapshot.isNotEmpty) {
         return snapshot;
       }
     }
+
+    // Native Camera Fallback (Android & iOS)
+    try {
+      final picker = ImagePicker();
+      final photo = await picker.pickImage(
+        source: ImageSource.camera,
+        preferredCameraDevice: CameraDevice.front,
+        maxWidth: 640,
+        maxHeight: 640,
+        imageQuality: 90,
+      );
+      if (photo != null) {
+        return await photo.readAsBytes();
+      }
+    } catch (e) {
+      debugPrint('Native camera capture error: $e');
+    }
+
     throw Exception('Live camera is initializing. Please position your face inside the oval and try again.');
   }
 
@@ -102,7 +120,7 @@ class _FaceBiometricScreenState extends State<FaceBiometricScreen>
     });
 
     try {
-      final imageBytes = _captureFaceImageBytes();
+      final imageBytes = await _captureFaceImageBytes();
       final user = await _apiService.reEnrollSeniorFace(
         identifier: widget.identifier,
         password: password,
@@ -216,7 +234,7 @@ class _FaceBiometricScreenState extends State<FaceBiometricScreen>
     });
 
     try {
-      final imageBytes = _captureFaceImageBytes();
+      final imageBytes = await _captureFaceImageBytes();
 
       if (widget.mode == FaceScreenMode.enroll) {
         // ENROLLMENT WORKFLOW

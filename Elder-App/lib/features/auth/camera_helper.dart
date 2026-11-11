@@ -1,3 +1,3 @@
-export 'camera_stub.dart'
+export 'camera_mobile.dart'
     if (dart.library.html) 'camera_web.dart';
 

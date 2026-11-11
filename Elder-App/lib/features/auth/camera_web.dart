@@ -47,7 +47,7 @@ class WebCameraHelper {
     return false;
   }
 
-  List<int>? captureSnapshot() {
+  Future<List<int>?> captureSnapshot() async {
     if (_videoElement == null || !isInitialized) return null;
     try {
       final vWidth = _videoElement!.videoWidth > 0 ? _videoElement!.videoWidth : 480;

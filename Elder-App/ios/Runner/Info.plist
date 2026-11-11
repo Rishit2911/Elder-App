@@ -49,6 +49,23 @@
 	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Camera, Microphone, Photo Library & FaceID Permissions -->
+	<key>NSCameraUsageDescription</key>
+	<string>Elder Seva requires camera access for senior biometric face login and identity verification.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Elder Seva requires microphone access for emergency voice calls and AI assistant.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Elder Seva requires photo library access to upload medical records and prescription documents.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Elder Seva uses Face ID to securely authenticate senior citizens without passwords.</string>
+
+	<!-- Allow HTTP local network connections for development -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
+
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

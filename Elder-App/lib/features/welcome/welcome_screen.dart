@@ -2,11 +2,77 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/custom_button.dart';
+import '../../data/models/user_model.dart';
+import '../../data/services/auth_api_service.dart';
+import '../../data/services/native_biometric_service.dart';
 import '../auth/login_screen.dart';
 import '../auth/registration_screen.dart';
+import '../caregiver/caregiver_dashboard_screen.dart';
+import '../family/family_dashboard_screen.dart';
+import '../senior/senior_dashboard_screen.dart';
 
-class WelcomeScreen extends StatelessWidget {
+class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
+
+  @override
+  State<WelcomeScreen> createState() => _WelcomeScreenState();
+}
+
+class _WelcomeScreenState extends State<WelcomeScreen> {
+  UserModel? _savedUser;
+  bool _hasSavedSession = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAutoLogin();
+    });
+  }
+
+  Future<void> _checkAutoLogin() async {
+    final api = AuthApiService();
+    final hasSession = await api.restoreSession();
+    if (!hasSession || !mounted) return;
+
+    final user = api.currentUser;
+    if (user == null) return;
+
+    setState(() {
+      _savedUser = user;
+      _hasSavedSession = true;
+    });
+
+    _promptBiometricsAndNavigate(user);
+  }
+
+  Future<void> _promptBiometricsAndNavigate(UserModel user) async {
+    // Trigger Native Phone Biometrics (Face ID / Fingerprint / Device PIN Fallback)
+    final authenticated = await NativeBiometricService().authenticate(
+      reason: 'Welcome back ${user.fullName}! Authenticate to unlock Elderly Seva.',
+    );
+
+    if (!authenticated || !mounted) return;
+
+    Widget destination;
+    switch (user.role) {
+      case UserRole.senior:
+        destination = const SeniorDashboardScreen();
+        break;
+      case UserRole.family:
+        destination = const FamilyDashboardScreen();
+        break;
+      case UserRole.caregiver:
+        destination = const CaregiverDashboardScreen();
+        break;
+    }
+
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => destination),
+      (route) => false,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -136,21 +202,53 @@ class WelcomeScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 22),
 
-                  // Prominent Get Started Button -> Connects to Login & Registration
-                  CustomButton(
-                    label: 'Get Started',
-                    height: 56,
-                    borderRadius: 18,
-                    backgroundColor: const Color(0xFF28548A),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const LoginScreen(),
-                        ),
-                      );
-                    },
-                  ),
+                  if (_hasSavedSession && _savedUser != null) ...[
+                    // One-Tap Native Biometric Quick Unlock for Returning Senior/User
+                    CustomButton(
+                      label: 'Unlock as ${_savedUser!.fullName}',
+                      icon: Icons.fingerprint_rounded,
+                      height: 56,
+                      borderRadius: 18,
+                      backgroundColor: AppColors.mintGreen,
+                      foregroundColor: AppColors.navy,
+                      onPressed: () => _promptBiometricsAndNavigate(_savedUser!),
+                    ),
+                    const SizedBox(height: 10),
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.swap_horiz_rounded, size: 18),
+                      label: const Text('Sign in to Another Account'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.navy,
+                        side: const BorderSide(color: Color(0xFF28548A), width: 1.2),
+                        minimumSize: const Size(double.infinity, 50),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const LoginScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                  ] else ...[
+                    // Prominent Get Started Button -> Connects to Login & Registration
+                    CustomButton(
+                      label: 'Get Started',
+                      height: 56,
+                      borderRadius: 18,
+                      backgroundColor: const Color(0xFF28548A),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const LoginScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
 
                   const SizedBox(height: 12),
 

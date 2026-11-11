@@ -3,6 +3,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/circular_sos_button.dart';
 import '../../../data/models/user_model.dart';
+import '../../../data/services/auth_api_service.dart';
 import '../../auth/login_screen.dart';
 import '../../caregiver/caregiver_dashboard_screen.dart';
 import '../../family/family_dashboard_screen.dart';
@@ -267,7 +268,9 @@ class _SeniorSettingsScreenState extends State<SeniorSettingsScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     ),
-                    onPressed: () {
+                    onPressed: () async {
+                      await AuthApiService().clearSession();
+                      if (!context.mounted) return;
                       Navigator.pushAndRemoveUntil(
                         context,
                         MaterialPageRoute(builder: (_) => const LoginScreen(initialRole: UserRole.senior)),
