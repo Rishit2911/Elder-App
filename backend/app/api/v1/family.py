@@ -1,108 +1,162 @@
 import uuid
-from datetime import datetime, timedelta, timezone
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.permissions import get_current_user_payload
+from app.core.permissions import get_current_user
 from app.database.connection import get_db
+from app.models.family import FamilyRelationship
+from app.models.users import User
+from app.schemas.auth import StandardResponse
 from app.schemas.family import (
-    FamilyInvitationCreate, InvitationAcceptRequest, PermissionsUpdateRequest
+    FamilyInvitationCreate, FamilyLinkApproval,
+    FamilyLinkItem, PermissionsUpdateRequest
 )
+from app.services.family_service import FamilyService
 
-router = APIRouter(prefix="/family", tags=["Family Connections"])
+router = APIRouter(prefix="/family", tags=["Family Connections & Linking"])
 
 
-@router.post("/invitations", status_code=status.HTTP_201_CREATED)
-async def create_invitation(
+@router.post("/link/request", response_model=StandardResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/invite", response_model=StandardResponse, status_code=status.HTTP_201_CREATED)
+async def request_connection(
     payload: FamilyInvitationCreate,
-    current_user: dict = Depends(get_current_user_payload),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Senior sends an invitation to link a family member into their care circle.
+    Request a connection between a family member and senior citizen.
+    Generates a cryptographically random invitation code (SC-XXXXXX) valid for 7 days.
     """
-    code = f"INV-{uuid.uuid4().hex[:6].upper()}"
-    return {
-        "invitation_code": code,
-        "invitee_phone": payload.invitee_phone,
-        "relation_proposed": payload.relation_proposed,
-        "expires_at": datetime.now(timezone.utc) + timedelta(days=2),
-        "status": "pending"
-    }
+    invitation = await FamilyService.create_invitation(db, current_user, payload)
+    return StandardResponse(
+        success=True,
+        message="Family connection invitation created successfully",
+        data={
+            "invitationId": str(invitation.id),
+            "invitationCode": invitation.invitation_code,
+            "targetPhone": invitation.invitee_phone,
+            "proposedRelationship": invitation.relation_proposed,
+            "status": invitation.status,
+            "expiresAt": invitation.expires_at.isoformat()
+        }
+    )
 
 
-@router.post("/invitations/accept")
-async def accept_invitation(
-    payload: InvitationAcceptRequest,
-    current_user: dict = Depends(get_current_user_payload),
+@router.post("/link/approve", response_model=StandardResponse)
+async def approve_connection(
+    payload: FamilyLinkApproval,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Family member inputs code to accept invitation and establish verified connection.
+    Approve or reject a family connection invitation.
+    Only the invited senior citizen can approve the request.
+    On approval, assigns verified ReBAC permissions.
     """
-    return {
-        "status": "active",
-        "relationship_id": uuid.uuid4(),
-        "senior_name": "दादाजी Ramesh Sharma",
-        "message": "Connection established successfully. You are now part of Dadaji's care circle."
-    }
+    relationship = await FamilyService.approve_invitation(db, current_user, payload)
+    return StandardResponse(
+        success=True,
+        message="Family connection approved and permissions assigned",
+        data={
+            "relationshipId": str(relationship.id),
+            "seniorId": str(relationship.senior_id),
+            "familyUserId": str(relationship.family_user_id),
+            "relationType": relationship.relation_type,
+            "status": relationship.status
+        }
+    )
 
 
-@router.get("/seniors")
-async def get_connected_seniors(
-    current_user: dict = Depends(get_current_user_payload),
+@router.get("/links", response_model=StandardResponse)
+async def list_connections(
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Retrieve all senior citizen dependents connected to this family account.
+    List all active family links for the current user.
+    If Senior: lists connected family members and their permissions.
+    If Family: lists connected senior citizens.
     """
-    return {
-        "seniors": [
-            {
-                "id": "00000000-0000-0000-0000-000000000001",
-                "name": "दादाजी Ramesh Sharma",
-                "relation": "Father",
-                "city": "Jaipur",
-                "recent_bp": "120/80",
-                "status": "Healthy"
-            }
-        ]
-    }
+    links = await FamilyService.list_links(db, current_user)
+    return StandardResponse(
+        success=True,
+        message="Family connections retrieved",
+        data=[link.model_dump(by_alias=True) for link in links]
+    )
 
 
-@router.put("/relationships/{relationship_id}/permissions")
+@router.get("/links/{relationship_id}", response_model=StandardResponse)
+async def get_connection_details(
+    relationship_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Retrieve specific relationship link details with ownership verification.
+    """
+    rel = await db.get(FamilyRelationship, relationship_id)
+    if not rel:
+        raise HTTPException(status_code=404, detail="Relationship link not found")
+
+    # Verify user is either the senior or the family member
+    is_senior = current_user.senior_profile and current_user.senior_profile.id == rel.senior_id
+    is_family = current_user.id == rel.family_user_id
+    if not (is_senior or is_family or current_user.role == "admin"):
+        raise HTTPException(status_code=403, detail="Unauthorized access to this relationship")
+
+    return StandardResponse(
+        success=True,
+        message="Relationship details retrieved",
+        data={
+            "id": str(rel.id),
+            "seniorId": str(rel.senior_id),
+            "familyUserId": str(rel.family_user_id),
+            "relationType": rel.relation_type,
+            "status": rel.status,
+            "isEmergencyContact": rel.is_emergency_contact,
+            "isPrimaryCaregiverContact": rel.is_primary_caregiver_contact,
+            "createdAt": rel.created_at.isoformat()
+        }
+    )
+
+
+@router.patch("/links/{relationship_id}/permissions", response_model=StandardResponse)
 async def update_permissions(
     relationship_id: uuid.UUID,
     payload: PermissionsUpdateRequest,
-    current_user: dict = Depends(get_current_user_payload),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Senior updates fine-grained ReBAC access permissions for a connected family member.
+    Update permissions and emergency priorities on an approved relationship.
+    Only the senior citizen who owns the records can modify permissions.
     """
-    return {
-        "relationship_id": relationship_id,
-        "updated_permissions": [p.dict() for p in payload.permissions],
-        "message": "Access permissions updated successfully."
-    }
+    rel = await FamilyService.update_permissions(db, current_user, relationship_id, payload)
+    return StandardResponse(
+        success=True,
+        message="Permissions updated successfully",
+        data={
+            "relationshipId": str(rel.id),
+            "isEmergencyContact": rel.is_emergency_contact,
+            "isPrimaryCaregiverContact": rel.is_primary_caregiver_contact,
+            "status": rel.status
+        }
+    )
 
 
-@router.get("/updates/moments")
-async def get_family_moments(
-    current_user: dict = Depends(get_current_user_payload),
+@router.post("/links/{relationship_id}/revoke", response_model=StandardResponse)
+async def revoke_connection(
+    relationship_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Photo and message timeline feed for the "My Family" screen.
+    Revoke a family connection link immediately.
+    Can be executed by either the senior citizen or the connected family member.
     """
-    return {
-        "moments": [
-            {
-                "id": "moment-uuid-1",
-                "author": "Priya (Daughter)",
-                "caption": "Good morning Dadaji! Hope you had your morning tea and walk.",
-                "created_at": "2026-11-06T07:30:00Z"
-            }
-        ]
-    }
-
+    await FamilyService.revoke_link(db, current_user, relationship_id)
+    return StandardResponse(
+        success=True,
+        message="Family connection was successfully revoked"
+    )

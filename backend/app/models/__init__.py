@@ -1,5 +1,5 @@
 from app.database.base import Base
-from app.models.users import User, SeniorProfile, FamilyProfile, CaregiverProfile, DoctorProfile
+from app.models.users import User, SeniorProfile, FamilyProfile, CaregiverProfile, DoctorProfile, UserConsent
 from app.models.family import FamilyRelationship, FamilyInvitation, AccessPermission
 from app.models.healthcare import HealthRecord, Prescription, Medicine, MedicineSchedule, MedicineLog
 from app.models.emergency import EmergencyContact, SOSEvent
@@ -19,6 +19,7 @@ __all__ = [
     "FamilyProfile",
     "CaregiverProfile",
     "DoctorProfile",
+    "UserConsent",
     "FamilyRelationship",
     "FamilyInvitation",
     "AccessPermission",

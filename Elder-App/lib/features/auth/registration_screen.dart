@@ -5,9 +5,10 @@ import '../../core/widgets/custom_button.dart';
 import '../../core/widgets/custom_text_field.dart';
 import '../../core/widgets/role_badge.dart';
 import '../../data/models/user_model.dart';
+import '../../data/services/auth_api_service.dart';
 import '../caregiver/caregiver_dashboard_screen.dart';
 import '../family/family_dashboard_screen.dart';
-import '../senior/senior_dashboard_screen.dart';
+import 'face_biometric_screen.dart';
 import 'login_screen.dart';
 
 class RegistrationScreen extends StatefulWidget {
@@ -24,11 +25,21 @@ class RegistrationScreen extends StatefulWidget {
 
 class _RegistrationScreenState extends State<RegistrationScreen> {
   final _formKey = GlobalKey<FormState>();
+  final AuthApiService _apiService = AuthApiService();
+
+  // Core fields
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
+
+  // Role-specific fields
+  final TextEditingController _preferredNameController = TextEditingController(text: 'दादाजी');
+  final TextEditingController _ageController = TextEditingController(text: '72');
+  final TextEditingController _relationshipController = TextEditingController(text: 'Son');
+  final TextEditingController _cityController = TextEditingController(text: 'Delhi NCR');
+  final TextEditingController _hourlyRateController = TextEditingController(text: '300');
 
   late UserRole _selectedRole;
   bool _obscurePassword = true;
@@ -49,16 +60,22 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _preferredNameController.dispose();
+    _ageController.dispose();
+    _relationshipController.dispose();
+    _cityController.dispose();
+    _hourlyRateController.dispose();
     super.dispose();
   }
 
-  void _handleRegister() {
+  Future<void> _handleRegister() async {
     if (!_formKey.currentState!.validate()) return;
 
     if (!_agreedToTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please accept the Terms of Service & Privacy Policy.'),
+          backgroundColor: Colors.redAccent,
         ),
       );
       return;
@@ -68,42 +85,141 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       _isLoading = true;
     });
 
-    Future.delayed(const Duration(milliseconds: 500), () {
+    final name = _nameController.text.trim();
+    final phone = _phoneController.text.trim();
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    try {
+      if (_selectedRole == UserRole.senior) {
+        // 1. Register Senior in Database
+        await _apiService.registerSenior(
+          fullName: name,
+          phoneNumber: phone,
+          password: password,
+          preferredName: _preferredNameController.text.trim(),
+          email: email.isNotEmpty ? email : null,
+          age: int.tryParse(_ageController.text.trim()) ?? 70,
+          gender: 'other',
+        );
+
+        // 2. Perform background login to acquire token for face biometric enrollment
+        await _apiService.loginPassword(
+          identifier: phone,
+          password: password,
+          role: UserRole.senior,
+        );
+
+        final token = _apiService.accessToken;
+
+        if (!mounted) return;
+        setState(() {
+          _isLoading = false;
+        });
+
+        // 3. Navigate directly to Face Biometric Enrollment screen
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Senior profile created! Proceed to face enrollment.'),
+            backgroundColor: AppColors.mintGreen,
+          ),
+        );
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => FaceBiometricScreen(
+              mode: FaceScreenMode.enroll,
+              identifier: phone,
+              tempAccessToken: token,
+              fullName: name,
+            ),
+          ),
+        );
+      } else if (_selectedRole == UserRole.family) {
+        // Register Family Member
+        await _apiService.registerFamily(
+          fullName: name,
+          phoneNumber: phone,
+          password: password,
+          email: email.isNotEmpty ? email : null,
+          relationshipType: _relationshipController.text.trim(),
+        );
+
+        // Automatic login to establish session
+        await _apiService.loginPassword(
+          identifier: phone,
+          password: password,
+          role: UserRole.family,
+        );
+
+        if (!mounted) return;
+        setState(() {
+          _isLoading = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Welcome $name! Family account ready.'),
+            backgroundColor: AppColors.mintGreen,
+          ),
+        );
+
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const FamilyDashboardScreen()),
+          (route) => false,
+        );
+      } else if (_selectedRole == UserRole.caregiver) {
+        // Register Caretaker / Caregiver
+        await _apiService.registerCaregiver(
+          fullName: name,
+          phoneNumber: phone,
+          password: password,
+          email: email.isNotEmpty ? email : null,
+          serviceCity: _cityController.text.trim(),
+          hourlyRate: double.tryParse(_hourlyRateController.text.trim()) ?? 250.0,
+        );
+
+        // Automatic login to establish session
+        await _apiService.loginPassword(
+          identifier: phone,
+          password: password,
+          role: UserRole.caregiver,
+        );
+
+        if (!mounted) return;
+        setState(() {
+          _isLoading = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Welcome $name! Caretaker portal ready.'),
+            backgroundColor: AppColors.mintGreen,
+          ),
+        );
+
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const CaregiverDashboardScreen()),
+          (route) => false,
+        );
+      }
+    } catch (e) {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
       });
 
-      // Route to role-specific dashboard
-      Widget targetScreen;
-      switch (_selectedRole) {
-        case UserRole.senior:
-          targetScreen = const SeniorDashboardScreen();
-          break;
-        case UserRole.family:
-          targetScreen = const FamilyDashboardScreen();
-          break;
-        case UserRole.caregiver:
-          targetScreen = const CaregiverDashboardScreen();
-          break;
-      }
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'Account created successfully for ${_nameController.text.trim()}!\n[Integration: POST /api/v1/auth/register]',
-          ),
-          backgroundColor: AppColors.mintGreen,
-          duration: const Duration(seconds: 3),
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+          backgroundColor: Colors.redAccent,
+          duration: const Duration(seconds: 4),
         ),
       );
-
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => targetScreen),
-        (route) => false,
-      );
-    });
+    }
   }
 
   @override
@@ -185,12 +301,36 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   ],
                 ),
 
-                const SizedBox(height: 22),
+                const SizedBox(height: 18),
+
+                // Notice Banner for Senior
+                if (_selectedRole == UserRole.senior)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryBlue.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.primaryBlue.withOpacity(0.2)),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.face_retouching_natural_rounded, color: AppColors.primaryBlue, size: 22),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Step 1: Enter basic details. Step 2: Enroll your face for quick passwordless login.',
+                            style: TextStyle(fontSize: 12.5, color: AppColors.navy, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
 
                 // Full Name
                 CustomTextField(
                   label: 'Full Name',
-                  hint: 'e.g. Ramesh Sharma',
+                  hint: _selectedRole == UserRole.senior ? 'e.g. Kailash Chand Sharma' : 'e.g. Ramesh Sharma',
                   prefixIcon: Icons.person_outline_rounded,
                   controller: _nameController,
                   validator: (value) {
@@ -203,36 +343,19 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
                 const SizedBox(height: 16),
 
-                // Email Address
-                CustomTextField(
-                  label: 'Email Address',
-                  hint: 'e.g. name@example.com',
-                  prefixIcon: Icons.mail_outline_rounded,
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Please enter an email address';
-                    }
-                    if (!value.contains('@') || !value.contains('.')) {
-                      return 'Please enter a valid email address';
-                    }
-                    return null;
-                  },
-                ),
-
-                const SizedBox(height: 16),
-
                 // Phone Number
                 CustomTextField(
-                  label: 'Phone Number',
-                  hint: 'e.g. +1 (555) 000-0000',
+                  label: 'Mobile Number (Primary Login ID)',
+                  hint: 'e.g. +91 98765 43210',
                   prefixIcon: Icons.phone_outlined,
                   controller: _phoneController,
                   keyboardType: TextInputType.phone,
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'Please enter your phone number';
+                      return 'Please enter your mobile number';
+                    }
+                    if (value.trim().length < 8) {
+                      return 'Please enter a valid mobile number with country code';
                     }
                     return null;
                   },
@@ -240,10 +363,91 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
                 const SizedBox(height: 16),
 
+                // Email Address (Optional for senior, required for family/caregiver)
+                CustomTextField(
+                  label: _selectedRole == UserRole.senior ? 'Email Address (Optional)' : 'Email Address',
+                  hint: 'e.g. name@example.com',
+                  prefixIcon: Icons.mail_outline_rounded,
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  validator: (value) {
+                    if (_selectedRole != UserRole.senior) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Please enter an email address';
+                      }
+                      if (!value.contains('@') || !value.contains('.')) {
+                        return 'Please enter a valid email address';
+                      }
+                    }
+                    return null;
+                  },
+                ),
+
+                const SizedBox(height: 16),
+
+                // Role-Specific Inputs
+                if (_selectedRole == UserRole.senior) ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: CustomTextField(
+                          label: 'Preferred Name',
+                          hint: 'e.g. दादाजी',
+                          prefixIcon: Icons.sentiment_satisfied_alt_rounded,
+                          controller: _preferredNameController,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: CustomTextField(
+                          label: 'Age',
+                          hint: 'e.g. 74',
+                          prefixIcon: Icons.cake_outlined,
+                          controller: _ageController,
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                ] else if (_selectedRole == UserRole.family) ...[
+                  CustomTextField(
+                    label: 'Relationship to Senior',
+                    hint: 'e.g. Son, Daughter, Grandchild, Relative',
+                    prefixIcon: Icons.family_restroom_rounded,
+                    controller: _relationshipController,
+                  ),
+                  const SizedBox(height: 16),
+                ] else if (_selectedRole == UserRole.caregiver) ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: CustomTextField(
+                          label: 'Service City',
+                          hint: 'e.g. Delhi NCR',
+                          prefixIcon: Icons.location_city_rounded,
+                          controller: _cityController,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: CustomTextField(
+                          label: 'Hourly Rate (₹)',
+                          hint: 'e.g. 300',
+                          prefixIcon: Icons.currency_rupee_rounded,
+                          controller: _hourlyRateController,
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
                 // Password
                 CustomTextField(
                   label: 'Password',
-                  hint: 'Create a strong password (min 8 characters)',
+                  hint: 'Create a password (min 6 characters)',
                   prefixIcon: Icons.lock_outline_rounded,
                   controller: _passwordController,
                   isPassword: true,
@@ -324,7 +528,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
                 // Register Button
                 CustomButton(
-                  label: 'Create Account',
+                  label: _selectedRole == UserRole.senior
+                      ? 'Continue to Face Enrollment'
+                      : 'Create Account',
                   isLoading: _isLoading,
                   height: 56,
                   borderRadius: 18,
@@ -371,4 +577,3 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     );
   }
 }
-

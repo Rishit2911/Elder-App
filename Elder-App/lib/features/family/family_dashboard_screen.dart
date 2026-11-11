@@ -116,9 +116,10 @@ class _FamilyDashboardScreenState extends State<FamilyDashboardScreen> {
       ),
       body: Stack(
         children: [
-          SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(18, 12, 18, 110),
-            child: Column(
+          Positioned.fill(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(18, 12, 18, 110),
+              child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // MULTI-SENIOR PROFILES SELECTOR
@@ -499,6 +500,8 @@ class _FamilyDashboardScreenState extends State<FamilyDashboardScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.warmAmber,
                           foregroundColor: Colors.white,
+                          minimumSize: const Size(0, 40),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                         onPressed: _showScheduleVisitModal,
@@ -554,17 +557,20 @@ class _FamilyDashboardScreenState extends State<FamilyDashboardScreen> {
                       ),
                       if (_hasConsent) ...[
                         const Divider(height: 20),
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: const Icon(Icons.picture_as_pdf_rounded, color: AppColors.coralRed),
-                          title: const Text('Cardiology Echo Report (Dr. Sharma)', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700)),
-                          subtitle: const Text('Uploaded 3 days ago • Normal LVEF', style: TextStyle(fontSize: 11.5)),
-                          trailing: const Icon(Icons.download_rounded, color: AppColors.primaryBlue),
-                          onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Downloading Cardiology Echo Report (PDF)...')),
-                            );
-                          },
+                        Material(
+                          color: Colors.transparent,
+                          child: ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: const Icon(Icons.picture_as_pdf_rounded, color: AppColors.coralRed),
+                            title: const Text('Cardiology Echo Report (Dr. Sharma)', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700)),
+                            subtitle: const Text('Uploaded 3 days ago • Normal LVEF', style: TextStyle(fontSize: 11.5)),
+                            trailing: const Icon(Icons.download_rounded, color: AppColors.primaryBlue),
+                            onTap: () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Downloading Cardiology Echo Report (PDF)...')),
+                              );
+                            },
+                          ),
                         ),
                       ],
                     ],
@@ -573,8 +579,9 @@ class _FamilyDashboardScreenState extends State<FamilyDashboardScreen> {
               ],
             ),
           ),
+        ),
 
-          // Circular Floating SOS
+        // Circular Floating SOS
           Positioned(
             right: 18,
             bottom: 30,

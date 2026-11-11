@@ -106,9 +106,10 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
       ),
       body: Stack(
         children: [
-          SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(18, 12, 18, 110),
-            child: Column(
+          Positioned.fill(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(18, 12, 18, 110),
+              child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Caregiver Profile & Availability Card
@@ -468,8 +469,9 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
               ],
             ),
           ),
+        ),
 
-          // Floating SOS button
+        // Floating SOS button
           Positioned(
             right: 18,
             bottom: 30,

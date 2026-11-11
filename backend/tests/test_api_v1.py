@@ -1,10 +1,12 @@
+import random
 import uuid
 from fastapi.testclient import TestClient
 
 
 def test_senior_registration(client: TestClient):
+    unique_phone = f"+91987{random.randint(1000000, 9999999)}"
     payload = {
-        "phone_number": "+919876543210",
+        "phone_number": unique_phone,
         "full_name": "Ramesh Sharma",
         "preferred_name": "दादाजी",
         "date_of_birth": "1952-08-15",
@@ -17,33 +19,45 @@ def test_senior_registration(client: TestClient):
     response = client.post("/api/v1/auth/register/senior", json=payload)
     assert response.status_code == 201
     data = response.json()
-    assert "OTP sent" in data["message"]
+    assert data["success"] is True
+    assert data["data"]["role"] == "senior"
 
 
 def test_auth_login(client: TestClient):
-    payload = {
-        "username": "+919876543210",
+    unique_phone = f"+91986{random.randint(1000000, 9999999)}"
+    client.post("/api/v1/auth/register", json={
+        "fullName": "Login Test Senior",
+        "phoneNumber": unique_phone,
         "password": "ValidPassword123!",
-        "device_uuid": "test-device-uuid-1",
-        "platform": "android"
+        "role": "senior"
+    })
+
+    payload = {
+        "emailOrPhone": unique_phone,
+        "password": "ValidPassword123!"
     }
     response = client.post("/api/v1/auth/login", json=payload)
     assert response.status_code == 200
     data = response.json()
-    assert "access_token" in data
-    assert "refresh_token" in data
-    assert data["user"]["role"] == "senior"
+    assert data["success"] is True
+    assert "access_token" in data["data"]
+    assert data["data"]["user"]["role"] == "senior"
 
 
 def test_dashboard_summary(client: TestClient):
-    # Obtain token first
-    login_res = client.post("/api/v1/auth/login", json={
-        "username": "+919876543210",
+    unique_phone = f"+91985{random.randint(1000000, 9999999)}"
+    client.post("/api/v1/auth/register", json={
+        "fullName": "Dashboard Senior",
+        "phoneNumber": unique_phone,
         "password": "ValidPassword123!",
-        "device_uuid": "test-device-uuid-1",
-        "platform": "android"
+        "role": "senior"
     })
-    token = login_res.json()["access_token"]
+    login_res = client.post("/api/v1/auth/login", json={
+        "emailOrPhone": unique_phone,
+        "password": "ValidPassword123!"
+    })
+    assert login_res.status_code == 200
+    token = login_res.json()["data"]["access_token"]
     senior_id = str(uuid.uuid4())
 
     response = client.get(
@@ -58,13 +72,19 @@ def test_dashboard_summary(client: TestClient):
 
 
 def test_emergency_sos(client: TestClient):
-    login_res = client.post("/api/v1/auth/login", json={
-        "username": "+919876543210",
+    unique_phone = f"+91984{random.randint(1000000, 9999999)}"
+    client.post("/api/v1/auth/register", json={
+        "fullName": "SOS Senior",
+        "phoneNumber": unique_phone,
         "password": "ValidPassword123!",
-        "device_uuid": "test-device-uuid-1",
-        "platform": "android"
+        "role": "senior"
     })
-    token = login_res.json()["access_token"]
+    login_res = client.post("/api/v1/auth/login", json={
+        "emailOrPhone": unique_phone,
+        "password": "ValidPassword123!"
+    })
+    assert login_res.status_code == 200
+    token = login_res.json()["data"]["access_token"]
 
     payload = {
         "latitude": 26.9124,
@@ -85,13 +105,19 @@ def test_emergency_sos(client: TestClient):
 
 
 def test_assistant_chat(client: TestClient):
-    login_res = client.post("/api/v1/auth/login", json={
-        "username": "+919876543210",
+    unique_phone = f"+91983{random.randint(1000000, 9999999)}"
+    client.post("/api/v1/auth/register", json={
+        "fullName": "Assistant Senior",
+        "phoneNumber": unique_phone,
         "password": "ValidPassword123!",
-        "device_uuid": "test-device-uuid-1",
-        "platform": "android"
+        "role": "senior"
     })
-    token = login_res.json()["access_token"]
+    login_res = client.post("/api/v1/auth/login", json={
+        "emailOrPhone": unique_phone,
+        "password": "ValidPassword123!"
+    })
+    assert login_res.status_code == 200
+    token = login_res.json()["data"]["access_token"]
 
     payload = {"message": "मेरी दवाई कब है?", "language": "hi"}
     response = client.post(
@@ -101,5 +127,5 @@ def test_assistant_chat(client: TestClient):
     )
     assert response.status_code == 200
     data = response.json()
-    assert "Metformin" in data["reply_text"]
-
+    assert "response_text" in data
+    assert data["detected_intent"] == "medicine_schedule_query"

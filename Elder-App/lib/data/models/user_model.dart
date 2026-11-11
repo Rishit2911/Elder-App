@@ -56,17 +56,18 @@ class UserModel {
   }
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
+    final roleStr = (json['role'] as String? ?? 'senior').toLowerCase();
     return UserModel(
-      id: json['id'] as String,
-      fullName: json['fullName'] as String,
-      email: json['email'] as String,
-      phoneNumber: json['phoneNumber'] as String,
+      id: (json['id'] ?? json['userId'] ?? '').toString(),
+      fullName: (json['fullName'] ?? json['full_name'] ?? '').toString(),
+      email: (json['email'] ?? '').toString(),
+      phoneNumber: (json['phoneNumber'] ?? json['phone_number'] ?? '').toString(),
       role: UserRole.values.firstWhere(
-        (r) => r.name == json['role'],
+        (r) => r.name == roleStr,
         orElse: () => UserRole.senior,
       ),
-      profilePhoto: json['profilePhoto'] as String?,
-      preferredLanguage: json['preferredLanguage'] as String?,
+      profilePhoto: json['profilePhoto'] as String? ?? json['profile_picture_url'] as String?,
+      preferredLanguage: json['preferredLanguage'] as String? ?? 'English / हिंदी',
     );
   }
 }

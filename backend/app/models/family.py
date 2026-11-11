@@ -21,7 +21,7 @@ class FamilyRelationship(Base, UUIDMixin, TimestampMixin):
     is_emergency_contact: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     status: Mapped[str] = mapped_column(String(30), default="active", nullable=False)  # active, paused, revoked
 
-    permissions = relationship("AccessPermission", back_populates="relationship", cascade="all, delete-orphan")
+    permissions = relationship("AccessPermission", back_populates="relationship", cascade="all, delete-orphan", lazy="selectin")
 
 
 class FamilyInvitation(Base, UUIDMixin):

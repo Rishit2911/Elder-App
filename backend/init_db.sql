@@ -27,6 +27,18 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE INDEX IF NOT EXISTS idx_users_phone ON users (phone_number);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users (role);
 
+CREATE TABLE IF NOT EXISTS user_consents (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    consent_type VARCHAR(50) NOT NULL,
+    consent_version VARCHAR(20) NOT NULL DEFAULT '1.0',
+    is_granted BOOLEAN NOT NULL DEFAULT TRUE,
+    granted_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    withdrawn_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_consents_user ON user_consents (user_id);
+
 CREATE TABLE IF NOT EXISTS senior_profiles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
