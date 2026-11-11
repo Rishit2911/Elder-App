@@ -14,7 +14,7 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
   final List<Map<String, String>> _messages = [
     {
       'sender': 'assistant',
-      'text': 'नमस्ते दादाजी! I am IRA, your personal AI care companion. How can I help you today? You can ask about your medicines, health readings, or upcoming family visits.',
+      'text': 'नमस्ते दादाजी! I am RAM, your personal AI care companion. How can I help you today? You can ask about your medicines, health readings, or upcoming family visits.',
     },
   ];
   bool _isListening = false;
@@ -79,7 +79,7 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('IRA AI Assistant', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.navy)),
+                Text('RAM AI Assistant', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.navy)),
                 Text('Online • Voice & Text Companion', style: TextStyle(fontSize: 11, color: AppColors.mintGreen, fontWeight: FontWeight.w700)),
               ],
             ),
@@ -214,7 +214,7 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
                         controller: _textController,
                         onSubmitted: _sendQuery,
                         decoration: InputDecoration(
-                          hintText: 'Ask IRA anything...',
+                          hintText: 'Ask RAM anything...',
                           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(24),

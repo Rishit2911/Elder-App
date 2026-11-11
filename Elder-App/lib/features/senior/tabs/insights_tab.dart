@@ -27,7 +27,7 @@ class InsightsTab extends StatelessWidget {
 
           const SizedBox(height: 18),
 
-          // IRA AI Health Summary Card
+          // RAM AI Health Summary Card
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
@@ -47,7 +47,7 @@ class InsightsTab extends StatelessWidget {
                     ),
                     SizedBox(width: 10),
                     Text(
-                      'IRA Weekly Health Summary',
+                      'RAM Weekly Health Summary',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w800,

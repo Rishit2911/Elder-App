@@ -221,7 +221,7 @@ class _SeniorSettingsScreenState extends State<SeniorSettingsScreen> {
                         value: _voiceAnnouncements,
                         activeThumbColor: AppColors.primaryBlue,
                         title: const Text('Voice Reminders & Readout', style: TextStyle(fontWeight: FontWeight.w700)),
-                        subtitle: const Text('Reads aloud medication timings and appointments via IRA'),
+                        subtitle: const Text('Reads aloud medication timings and appointments via RAM'),
                         onChanged: (val) {
                           setState(() {
                             _voiceAnnouncements = val;

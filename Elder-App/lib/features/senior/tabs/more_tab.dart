@@ -150,7 +150,7 @@ class MoreTab extends StatelessWidget {
           ),
 
           _buildServiceTile(
-            title: 'Ask IRA AI Assistant',
+            title: 'Ask RAM AI Assistant',
             subtitle: 'Voice-enabled healthcare & reminder assistant',
             icon: Icons.auto_awesome_rounded,
             iconColor: AppColors.mintGreen,

@@ -126,7 +126,7 @@ class _HomeTabState extends State<HomeTab> {
 
           const SizedBox(height: 18),
 
-          // 10. IRA AI Assistant Section
+          // 10. RAM AI Assistant Section
           _buildAIAssistantSection(context),
         ],
       ),
@@ -789,7 +789,7 @@ class _HomeTabState extends State<HomeTab> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Meet IRA AI Assistant',
+                      'Meet RAM',
                       style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w900,

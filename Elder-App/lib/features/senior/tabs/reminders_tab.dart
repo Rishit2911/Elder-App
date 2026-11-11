@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../data/models/medicine_model.dart';
 import '../../../data/models/reminder_model.dart';
 import '../../../data/repositories/app_mock_data.dart';
+import '../medicines/medicines_screen.dart';
+import '../medicines/widgets/transparent_bottle_widget.dart';
 
 class RemindersTab extends StatefulWidget {
   const RemindersTab({super.key});
@@ -13,11 +16,13 @@ class RemindersTab extends StatefulWidget {
 
 class _RemindersTabState extends State<RemindersTab> {
   late List<ReminderModel> reminders;
+  late List<MedicineModel> medicineBottles;
 
   @override
   void initState() {
     super.initState();
     reminders = List.from(AppMockData.dailyReminders);
+    medicineBottles = AppMockData.initialThreeBottles;
   }
 
   void _toggleReminder(int index) {
@@ -188,6 +193,82 @@ class _RemindersTabState extends State<RemindersTab> {
                     backgroundColor: AppColors.background,
                     valueColor: const AlwaysStoppedAnimation<Color>(AppColors.mintGreen),
                   ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 18),
+
+          // Medicine Bottles Section (Requirement 5: display exactly three separate medicine bottles)
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: AppColors.cardBorder),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withAlpha(8),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.medication_liquid_rounded, color: AppColors.primaryBlue, size: 22),
+                        SizedBox(width: 8),
+                        Text(
+                          'My Medicine Bottles (3)',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.navy,
+                          ),
+                        ),
+                      ],
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const MedicinesScreen()),
+                        );
+                      },
+                      child: const Text('Manage', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: List.generate(medicineBottles.length, (index) {
+                    final med = medicineBottles[index];
+                    return Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(
+                          right: index < medicineBottles.length - 1 ? 8.0 : 0.0,
+                        ),
+                        child: TransparentBottleWidget(
+                          medicine: med,
+                          isSelected: false,
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const MedicinesScreen()),
+                            );
+                          },
+                        ),
+                      ),
+                    );
+                  }),
                 ),
               ],
             ),
