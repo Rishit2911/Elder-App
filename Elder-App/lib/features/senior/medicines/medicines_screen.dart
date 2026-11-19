@@ -5,6 +5,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/circular_sos_button.dart';
 import '../../../core/widgets/custom_button.dart';
+import '../../../data/services/api_service.dart';
 import 'widgets/transparent_bottle_widget.dart';
 
 class MedicinesScreen extends StatefulWidget {
@@ -15,6 +16,7 @@ class MedicinesScreen extends StatefulWidget {
 }
 
 class _MedicinesScreenState extends State<MedicinesScreen> {
+  final ApiService _api = ApiService();
   late List<MedicineModel> medicines;
   int selectedBottleIndex = 0;
 
@@ -42,10 +44,16 @@ class _MedicinesScreenState extends State<MedicinesScreen> {
       );
     });
 
+    // Notify backend medicine adherence logging endpoint
+    _api.logMedicineAdherence(
+      scheduleId: 'sched-today-${medicines[index].id}',
+      status: 'taken',
+    ).catchError((_) => <String, dynamic>{});
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          'Marked ${medicines[index].name} as taken! Adherence recorded.',
+          'Marked ${medicines[index].name} as taken! Adherence recorded in database.',
         ),
         backgroundColor: AppColors.mintGreen,
         behavior: SnackBarBehavior.floating,

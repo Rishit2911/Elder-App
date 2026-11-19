@@ -8,6 +8,7 @@ import '../../data/repositories/app_mock_data.dart';
 import '../auth/login_screen.dart';
 import '../family/family_dashboard_screen.dart';
 import '../senior/senior_dashboard_screen.dart';
+import '../admin/admin_dashboard_screen.dart';
 import 'visit_detail_screen.dart';
 
 class CaregiverDashboardScreen extends StatefulWidget {
@@ -69,6 +70,16 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
             },
             child: const Text('Family Guardian View'),
           ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
+              );
+            },
+            child: const Text('Admin Console View'),
+          ),
         ],
       ),
     );
@@ -106,9 +117,10 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
       ),
       body: Stack(
         children: [
-          SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(18, 12, 18, 110),
-            child: Column(
+          Positioned.fill(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(18, 12, 18, 110),
+              child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Caregiver Profile & Availability Card
@@ -468,8 +480,9 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
               ],
             ),
           ),
+        ),
 
-          // Floating SOS button
+        // Floating SOS button
           Positioned(
             right: 18,
             bottom: 30,

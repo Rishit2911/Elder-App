@@ -37,11 +37,10 @@ class TimestampMixin:
 
 
 class UUIDMixin:
-    """Reusable mixin providing an RFC 4122 UUID primary key."""
+    """Reusable mixin providing a native PostgreSQL UUID primary key."""
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
         index=True
     )
-

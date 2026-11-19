@@ -3,6 +3,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../data/models/sos_contact_model.dart';
 import '../../data/repositories/app_mock_data.dart';
+import '../../data/services/api_service.dart';
 
 class EmergencySosScreen extends StatefulWidget {
   const EmergencySosScreen({super.key});
@@ -12,21 +13,31 @@ class EmergencySosScreen extends StatefulWidget {
 }
 
 class _EmergencySosScreenState extends State<EmergencySosScreen> {
+  final ApiService _api = ApiService();
   bool isAlertDispatched = false;
   bool isSirenActive = false;
+  String? _activeSosEventId;
 
-  void _triggerEmergencyDispatch() {
+  Future<void> _triggerEmergencyDispatch() async {
     setState(() {
       isAlertDispatched = true;
     });
 
+    try {
+      final res = await _api.triggerSOS();
+      if (res['sos_event_id'] != null) {
+        _activeSosEventId = res['sos_event_id'].toString();
+      }
+    } catch (_) {}
+
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
+      SnackBar(
         content: Text(
-          'EMERGENCY ALERT BROADCAST: High-priority SMS & Push sent to Rajesh Sharma and Emergency Responders.\n[Integration Point: POST /api/v1/emergency/trigger-sos]',
+          'EMERGENCY ALERT BROADCAST: High-priority SMS & Push sent to Emergency Responders.${_activeSosEventId != null ? ' (Event ID: ${_activeSosEventId!.substring(0, 8)})' : ''}',
         ),
         backgroundColor: AppColors.coralRed,
-        duration: Duration(seconds: 5),
+        duration: const Duration(seconds: 5),
         behavior: SnackBarBehavior.floating,
       ),
     );

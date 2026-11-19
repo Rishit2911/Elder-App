@@ -66,6 +66,8 @@ class RoleBadge extends StatelessWidget {
         return AppColors.familyRole;
       case UserRole.caregiver:
         return AppColors.caregiverRole;
+      case UserRole.admin:
+        return AppColors.primaryBlue;
     }
   }
 
@@ -77,6 +79,8 @@ class RoleBadge extends StatelessWidget {
         return 'Family Member';
       case UserRole.caregiver:
         return 'Caregiver';
+      case UserRole.admin:
+        return 'Admin';
     }
   }
 
@@ -88,6 +92,8 @@ class RoleBadge extends StatelessWidget {
         return Icons.family_restroom_rounded;
       case UserRole.caregiver:
         return Icons.volunteer_activism_rounded;
+      case UserRole.admin:
+        return Icons.admin_panel_settings_rounded;
     }
   }
 }

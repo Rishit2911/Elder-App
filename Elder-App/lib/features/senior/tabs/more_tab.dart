@@ -9,6 +9,7 @@ import '../assistant/ai_assistant_screen.dart';
 import '../profile/senior_settings_screen.dart';
 import '../../caregiver/caregiver_dashboard_screen.dart';
 import '../../family/family_dashboard_screen.dart';
+import '../../admin/admin_dashboard_screen.dart';
 import '../../auth/login_screen.dart';
 
 class MoreTab extends StatelessWidget {
@@ -97,6 +98,24 @@ class MoreTab extends StatelessWidget {
                         },
                         icon: const Icon(Icons.volunteer_activism_rounded, size: 16),
                         label: const Text('Caregiver View', style: TextStyle(fontSize: 12)),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primaryBlue,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
+                          );
+                        },
+                        icon: const Icon(Icons.admin_panel_settings_rounded, size: 16),
+                        label: const Text('Admin View', style: TextStyle(fontSize: 12)),
                       ),
                     ),
                   ],

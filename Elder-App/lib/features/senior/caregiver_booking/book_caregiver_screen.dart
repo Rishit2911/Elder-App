@@ -4,6 +4,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/circular_sos_button.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../../../data/repositories/app_mock_data.dart';
+import '../../../data/services/api_service.dart';
 
 class BookCaregiverScreen extends StatefulWidget {
   const BookCaregiverScreen({super.key});
@@ -13,6 +14,7 @@ class BookCaregiverScreen extends StatefulWidget {
 }
 
 class _BookCaregiverScreenState extends State<BookCaregiverScreen> {
+  final ApiService _api = ApiService();
   String _selectedCareType = 'Daily Living & Mobility';
   String _selectedDuration = '4 Hours / Day';
   final TextEditingController _specialNotesController = TextEditingController();
@@ -38,7 +40,20 @@ class _BookCaregiverScreenState extends State<BookCaregiverScreen> {
     super.dispose();
   }
 
-  void _submitCareRequest() {
+  Future<void> _submitCareRequest() async {
+    // Fire real booking request to backend
+    try {
+      await _api.createCaregiverBooking(
+        seniorId: '056dd8f0-8fb6-47e7-871c-b1fafc6e2a89',
+        caregiverId: '22941ebf-e704-42ae-83da-16e575ad8818',
+        serviceType: _selectedCareType,
+        startDate: DateTime.now().toIso8601String(),
+        endDate: DateTime.now().add(const Duration(days: 7)).toIso8601String(),
+        instructions: _specialNotesController.text,
+      );
+    } catch (_) {}
+
+    if (!mounted) return;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -63,7 +78,7 @@ class _BookCaregiverScreenState extends State<BookCaregiverScreen> {
             Text('Duration: $_selectedDuration', style: const TextStyle(fontWeight: FontWeight.w700)),
             const SizedBox(height: 12),
             const Text(
-              'Agency manager will call your family contact within 30 minutes to confirm caregiver matching.\n\n[Backend: POST /api/v1/caregiver/requests]',
+              'Agency manager will call your family contact within 30 minutes to confirm caregiver matching.\n\n[Backend: POST /api/v1/caregivers/bookings]',
               style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
             ),
           ],

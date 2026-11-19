@@ -4,9 +4,61 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/circular_sos_button.dart';
 import '../../../data/models/sos_contact_model.dart';
 import '../../../data/repositories/app_mock_data.dart';
+import '../../../data/services/api_service.dart';
 
-class DoctorConsultationScreen extends StatelessWidget {
+class DoctorConsultationScreen extends StatefulWidget {
   const DoctorConsultationScreen({super.key});
+
+  @override
+  State<DoctorConsultationScreen> createState() => _DoctorConsultationScreenState();
+}
+
+class _DoctorConsultationScreenState extends State<DoctorConsultationScreen> {
+  final ApiService _api = ApiService();
+  List<DoctorModel> _doctors = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDoctors();
+  }
+
+  Future<void> _loadDoctors() async {
+    try {
+      final res = await _api.getDoctors();
+      if (res['doctors'] != null && res['doctors'] is List) {
+        final list = (res['doctors'] as List).map((d) {
+          return DoctorModel(
+            id: d['id']?.toString() ?? 'doc-1',
+            name: d['name']?.toString() ?? 'Dr. Specialist',
+            specialty: d['specialization']?.toString() ?? 'Geriatric Care',
+            hospital: 'Apollo / Seva Care Center',
+            experience: '15+ yrs',
+            consultationFee: '₹${d['consultation_fee'] ?? 500}',
+            availableTime: d['next_available_slot']?.toString() ?? 'Today, 4:30 PM',
+            rating: (d['rating'] as num?)?.toDouble() ?? 4.9,
+            phone: '+91 98223 34455',
+          );
+        }).toList();
+
+        if (mounted && list.isNotEmpty) {
+          setState(() {
+            _doctors = list;
+            _isLoading = false;
+          });
+          return;
+        }
+      }
+    } catch (_) {}
+
+    if (mounted) {
+      setState(() {
+        _doctors = List.from(AppMockData.doctors);
+        _isLoading = false;
+      });
+    }
+  }
 
   void _bookDoctor(BuildContext context, DoctorModel doctor) {
     showDialog(
@@ -157,7 +209,10 @@ class DoctorConsultationScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
 
-                ...AppMockData.doctors.map((doc) {
+                if (_isLoading)
+                  const Center(child: Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator()))
+                else
+                  ..._doctors.map((doc) {
                   return Container(
                     margin: const EdgeInsets.only(bottom: 14),
                     padding: const EdgeInsets.all(16),

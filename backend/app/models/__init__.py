@@ -1,15 +1,15 @@
 from app.database.base import Base
-from app.models.users import User, SeniorProfile, FamilyProfile, CaregiverProfile, DoctorProfile
+from app.models.users import User, SeniorProfile, FamilyProfile, CaregiverProfile, DoctorProfile, UserConsent
 from app.models.family import FamilyRelationship, FamilyInvitation, AccessPermission
-from app.models.healthcare import HealthRecord, Prescription, Medicine, MedicineSchedule, MedicineLog
-from app.models.emergency import EmergencyContact, SOSEvent
+from app.models.healthcare import HealthRecord, Prescription, Medicine, MedicineSchedule, MedicineIntakeLog, MedicineLog, HealthReading
+from app.models.emergency import EmergencyContact, SosEvent, SOSEvent
 from app.models.caregivers import (
-    Service, CaregiverQualification, CaregiverVerificationDocument,
+    Service, Agency, CaregiverQualification, CaregiverVerificationDocument,
     CaregiverAvailability, Booking, BookingStatusHistory, CaregiverVisitReport
 )
 from app.models.biometrics import Device, RefreshToken, LoginSession, FaceProfile
 from app.models.appointments import DoctorAppointment, LabBooking
-from app.models.communication import FamilyUpdate, UpdateAttachment, Notification, NotificationPreference
+from app.models.communication import FamilyUpdate, UpdateAttachment, Notification, NotificationPreference, AIChatHistory
 from app.models.payments import SubscriptionPlan, Subscription, Payment, Review, AuditLog
 
 __all__ = [
@@ -19,6 +19,7 @@ __all__ = [
     "FamilyProfile",
     "CaregiverProfile",
     "DoctorProfile",
+    "UserConsent",
     "FamilyRelationship",
     "FamilyInvitation",
     "AccessPermission",
@@ -26,10 +27,14 @@ __all__ = [
     "Prescription",
     "Medicine",
     "MedicineSchedule",
+    "MedicineIntakeLog",
     "MedicineLog",
+    "HealthReading",
     "EmergencyContact",
+    "SosEvent",
     "SOSEvent",
     "Service",
+    "Agency",
     "CaregiverQualification",
     "CaregiverVerificationDocument",
     "CaregiverAvailability",
@@ -46,6 +51,7 @@ __all__ = [
     "UpdateAttachment",
     "Notification",
     "NotificationPreference",
+    "AIChatHistory",
     "SubscriptionPlan",
     "Subscription",
     "Payment",

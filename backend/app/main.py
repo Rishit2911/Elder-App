@@ -14,9 +14,10 @@ app = FastAPI(
 )
 
 # Cross-Origin Resource Sharing (CORS) Middleware
+# Uses allow_origin_regex to support dynamic Flutter Web dev ports while allowing credentials
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origin_regex=r"^https?://.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -27,6 +28,7 @@ app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 
 
 @app.get("/health", tags=["Health & Diagnostics"])
+@app.get(f"{settings.API_V1_PREFIX}/health", tags=["Health & Diagnostics"])
 async def health_check():
     """
     Standard liveness and readiness probe for Docker / Kubernetes orchestrators.

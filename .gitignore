@@ -26,5 +26,9 @@ backend/.venv/
 *.swp
 *.swo
 .tmp/
+# Local database backups and personal database records
+database/*.pgdump
+database/*.backup
+database/*_dump.sql
 
 

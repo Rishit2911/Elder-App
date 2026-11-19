@@ -1,7 +1,7 @@
 import uuid
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Optional
-from sqlalchemy import Boolean, Date, DECIMAL, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Date, DateTime, DECIMAL, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -19,10 +19,24 @@ class User(Base, UUIDMixin, TimestampMixin):
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     # Relationships
-    senior_profile = relationship("SeniorProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
-    family_profile = relationship("FamilyProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
-    caregiver_profile = relationship("CaregiverProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
-    doctor_profile = relationship("DoctorProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    senior_profile = relationship("SeniorProfile", back_populates="user", uselist=False, cascade="all, delete-orphan", lazy="selectin")
+    family_profile = relationship("FamilyProfile", back_populates="user", uselist=False, cascade="all, delete-orphan", lazy="selectin")
+    caregiver_profile = relationship("CaregiverProfile", back_populates="user", uselist=False, cascade="all, delete-orphan", lazy="selectin")
+    doctor_profile = relationship("DoctorProfile", back_populates="user", uselist=False, cascade="all, delete-orphan", lazy="selectin")
+    consents = relationship("UserConsent", back_populates="user", cascade="all, delete-orphan", lazy="selectin")
+
+
+class UserConsent(Base, UUIDMixin):
+    __tablename__ = "user_consents"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    consent_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    consent_version: Mapped[str] = mapped_column(String(20), default="1.0", nullable=False)
+    is_granted: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    granted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    withdrawn_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    user = relationship("User", back_populates="consents")
 
 
 class SeniorProfile(Base, UUIDMixin, TimestampMixin):
@@ -30,7 +44,7 @@ class SeniorProfile(Base, UUIDMixin, TimestampMixin):
 
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
     full_name: Mapped[str] = mapped_column(String(150), nullable=False)
-    preferred_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # e.g., "दादाजी"
+    preferred_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     date_of_birth: Mapped[date] = mapped_column(Date, nullable=False)
     gender: Mapped[str] = mapped_column(String(20), nullable=False)
     blood_group: Mapped[Optional[str]] = mapped_column(String(5), nullable=True)
@@ -92,4 +106,3 @@ class DoctorProfile(Base, UUIDMixin, TimestampMixin):
     rating_average: Mapped[float] = mapped_column(DECIMAL(3, 2), default=0.0, nullable=False)
 
     user = relationship("User", back_populates="doctor_profile")
-

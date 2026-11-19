@@ -4,9 +4,60 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/circular_sos_button.dart';
 import '../../../data/models/sos_contact_model.dart';
 import '../../../data/repositories/app_mock_data.dart';
+import '../../../data/services/api_service.dart';
 
-class NearbyHospitalsScreen extends StatelessWidget {
+class NearbyHospitalsScreen extends StatefulWidget {
   const NearbyHospitalsScreen({super.key});
+
+  @override
+  State<NearbyHospitalsScreen> createState() => _NearbyHospitalsScreenState();
+}
+
+class _NearbyHospitalsScreenState extends State<NearbyHospitalsScreen> {
+  final ApiService _api = ApiService();
+  List<HospitalModel> _hospitals = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHospitals();
+  }
+
+  Future<void> _loadHospitals() async {
+    try {
+      final res = await _api.getNearbyHospitals();
+      if (res['hospitals'] != null && res['hospitals'] is List) {
+        final list = (res['hospitals'] as List).map((h) {
+          return HospitalModel(
+            id: h['name']?.toString() ?? 'hosp',
+            name: h['name']?.toString() ?? 'Hospital',
+            distance: '${h['distance_km'] ?? 2.0} km away',
+            address: h['address']?.toString() ?? 'Jaipur, Rajasthan',
+            emergencyPhone: h['ambulance_phone']?.toString() ?? h['helpline_phone']?.toString() ?? '108',
+            rating: 4.8,
+            hasIcu: h['has_icu'] == true,
+            is24x7: true,
+          );
+        }).toList();
+
+        if (mounted && list.isNotEmpty) {
+          setState(() {
+            _hospitals = list;
+            _isLoading = false;
+          });
+          return;
+        }
+      }
+    } catch (_) {}
+
+    if (mounted) {
+      setState(() {
+        _hospitals = List.from(AppMockData.nearbyHospitals);
+        _isLoading = false;
+      });
+    }
+  }
 
   void _callHospital(BuildContext context, HospitalModel hosp) {
     showDialog(
@@ -110,7 +161,10 @@ class NearbyHospitalsScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
 
-                ...AppMockData.nearbyHospitals.map((hosp) {
+                if (_isLoading)
+                  const Center(child: Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator()))
+                else
+                  ..._hospitals.map((hosp) {
                   return Container(
                     margin: const EdgeInsets.only(bottom: 14),
                     padding: const EdgeInsets.all(16),
